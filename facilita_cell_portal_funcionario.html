@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FACILITA CELL — Portal do Funcionário</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
+
+  :root {
+    --orange: #E8520A;
+    --orange-light: #FFF3EC;
+    --orange-mid: #F47535;
+    --dark: #1A1A1A;
+    --mid: #4A4A4A;
+    --light: #F8F6F3;
+    --border: #E2DDDA;
+    --white: #FFFFFF;
+    --green: #1B6B2F;
+    --green-light: #EAF5EE;
+    --red: #B91C1C;
+    --purple: #7C3AED;
+    --purple-light: #F5F3FF;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--light);
+    color: var(--dark);
+    min-height: 100vh;
+  }
+
+  /* ── LOADING OVERLAY ─────────────────────────────────────────────────── */
+  #loadingOverlay {
+    position: fixed; inset: 0;
+    background: var(--dark);
+    z-index: 9999;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px;
+    transition: opacity 0.5s;
+  }
+  #loadingOverlay.fade-out { opacity: 0; pointer-events: none; }
+  .loading-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; font-weight: 700;
+    color: var(--white);
+  }
+  .loading-logo span { color: var(--orange); }
+  .loading-sub { font-size: 12px; color: #777; letter-spacing: 3px; text-transform: uppercase; }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid #333;
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-top: 8px;
+  }
+  .loading-msg { font-size: 13px; color: #666; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HEADER ──────────────────────────────────────────────────────────── */
+  .header {
+    background: var(--dark);
+    color: var(--white);
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 3px solid var(--orange);
+  }
+  .header-inner {
+    max-width: 820px; margin: 0 auto;
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; }
+  .logo span { color: var(--orange); }
+  .header-sub { font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase; }
+  .header-badge {
+    font-size: 11px; font-weight: 700; padding: 4px 12px;
+    border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .header-badge.pending { background: #FFF8EC; color: #7A4A00; border: 1px solid #F5CDA0; }
+  .header-badge.signed  { background: var(--green-light); color: #145525; border: 1px solid #9FD9B4; }
+
+  /* ── MAIN CONTENT ────────────────────────────────────────────────────── */
+  .page { max-width: 820px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* ── STATES ──────────────────────────────────────────────────────────── */
+  .state { display: none; }
+  .state.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+
+  /* Error/Info Center Box */
+  .center-box {
+    text-align: center; padding: 60px 20px;
+  }
+  .center-icon { font-size: 56px; margin-bottom: 16px; }
+  .center-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px; font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .center-msg { font-size: 14px; color: var(--mid); line-height: 1.7; margin-bottom: 20px; }
+
+  /* ── EMPLOYEE WELCOME CARD ───────────────────────────────────────────── */
+  .welcome-card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px 28px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .welcome-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--orange-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; flex-shrink: 0;
+    border: 2px solid var(--orange);
+  }
+  .welcome-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 700; color: var(--dark);
+  }
+  .welcome-cargo { font-size: 13px; color: var(--mid); margin-top: 3px; }
+  .welcome-meta { font-size: 12px; color: #999; margin-top: 6px; }
+
+  /* ── INFO BANNER ─────────────────────────────────────────────────────── */
+  .info-banner {
+    background: var(--purple-light); border: 1px solid #C4B5FD;
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;
+    font-size: 13px; color: #4C1D95; display: flex; gap: 12px;
+    align-items: flex-start; line-height: 1.6;
+  }
+  .info-banner-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+
+  /* ── DOCUMENT LIST ───────────────────────────────────────────────────── */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--orange);
+    margin-bottom: 12px; margin-top: 4px;
+  }
+
+  .doc-list-card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 20px;
+  }
+  .doc-list-header {
+    padding: 16px 20px; background: var(--light);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .doc-list-title { font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--orange); }
+  .doc-count-badge {
+    background: var(--orange); color: var(--white);
+    font-size: 11px; font-weight: 700; width: 22px; height: 22px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  }
+  .doc-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    transition: background 0.15s; cursor: pointer;
+  }
+  .doc-item:last-child { border-bottom: none; }
+  .doc-item:hover { background: var(--light); }
+  .doc-item-left { display: flex; align-items: center; gap: 12px; }
+  .doc-item-icon { font-size: 20px; }
+  .doc-item-name { font-size: 14px; font-weight: 500; color: var(--dark); }
+  .doc-item-sub { font-size: 12px; color: var(--mid); margin-top: 2px; }
+  .doc-item-arrow { color: var(--orange); font-size: 18px; font-weight: 700; }
+
+  /* ── PREVIEW MODAL ───────────────────────────────────────────────────── */
+  .preview-modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 500;
+    align-items: flex-start; justify-content: center;
+    padding: 16px; overflow-y: auto;
+  }
+  .preview-modal-bg.open { display: flex; }
+  .preview-modal {
+    background: var(--white); border-radius: 14px;
+    width: 100%; max-width: 780px; padding: 0;
+    position: relative; margin: auto;
+    overflow: hidden;
+  }
+  .preview-modal-header {
+    padding: 16px 20px; background: var(--dark);
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 3px solid var(--orange);
+  }
+  .preview-modal-title { font-size: 14px; font-weight: 600; color: var(--white); }
+  .btn-modal-close {
+    background: rgba(255,255,255,0.1); border: none;
+    border-radius: 6px; width: 32px; height: 32px;
+    cursor: pointer; color: var(--white); font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .btn-modal-close:hover { background: rgba(255,255,255,0.2); }
+  .preview-modal-body {
+    padding: 24px; max-height: 70vh; overflow-y: auto;
+  }
+  .preview-modal-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    background: var(--light); display: flex; gap: 10px; justify-content: flex-end;
+  }
+
+  /* ── DOCUMENT STYLES ─────────────────────────────────────────────────── */
+  .doc {
+    font-family: 'Times New Roman', serif;
+    font-size: 11pt; line-height: 1.7; color: #000;
+    padding: 16px; border: 1px solid var(--border);
+    border-radius: 8px; background: #FAFAF9;
+  }
+  .doc-header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #000; }
+  .doc-company { font-size: 14pt; font-weight: bold; letter-spacing: 1px; }
+  .doc-subtitle { font-size: 10pt; color: #555; margin-top: 4px; }
+  .doc-title { font-size: 15pt; font-weight: bold; text-align: center; text-transform: uppercase; margin: 20px 0 8px; letter-spacing: 1px; }
+  .doc-subtitle2 { text-align: center; font-style: italic; font-size: 11pt; margin-bottom: 20px; }
+  .doc-section-title { font-weight: bold; text-transform: uppercase; font-size: 10pt; margin: 14px 0 5px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+  .doc-clause { margin-bottom: 7px; text-align: justify; }
+  .doc-clause b { font-weight: bold; }
+  .doc-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10pt; }
+  .doc-table td { border: 1px solid #999; padding: 5px 9px; vertical-align: top; }
+  .doc-table td:first-child { font-weight: bold; width: 35%; background: #f0f0f0; }
+  .doc-sign { margin-top: 36px; display: flex; justify-content: space-between; gap: 36px; }
+  .doc-sign-block { flex: 1; text-align: center; }
+  .doc-sign-line { border-top: 1px solid #000; margin-bottom: 6px; padding-top: 6px; }
+  .doc-sign-name { font-weight: bold; font-size: 10pt; }
+  .doc-sign-role { font-size: 9pt; color: #555; }
+  .doc-city { margin-top: 28px; }
+  .doc-witness { margin-top: 36px; padding-top: 14px; border-top: 1px solid #ccc; display: flex; gap: 36px; }
+  .doc-witness-block { flex: 1; }
+  .doc-witness-line { border-top: 1px solid #000; margin-top: 26px; }
+
+  /* ── SIGNATURE AREA ──────────────────────────────────────────────────── */
+  .sign-section {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; margin-bottom: 20px;
+  }
+  .sign-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; font-weight: 700; margin-bottom: 6px;
+  }
+  .sign-section-sub { font-size: 13px; color: var(--mid); margin-bottom: 20px; }
+
+  /* Tabs */
+  .sign-tabs {
+    display: flex; margin-bottom: 0;
+    border-radius: 10px 10px 0 0; overflow: hidden;
+    border: 1px solid var(--border); border-bottom: none;
+  }
+  .sign-tab {
+    flex: 1; padding: 12px; text-align: center; font-size: 14px;
+    font-weight: 600; background: var(--light); color: var(--mid);
+    cursor: pointer; border: none; transition: all 0.2s;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  .sign-tab.active { background: var(--white); color: var(--purple); border-bottom: 2px solid var(--purple); }
+  .sign-tab-content {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 0 0 12px 12px; padding: 20px; margin-bottom: 20px;
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .canvas-wrap {
+    border: 2px dashed #C4B5FD; border-radius: 10px;
+    background: #FAFAFA; position: relative; margin-bottom: 12px;
+    touch-action: none;
+  }
+  #sigCanvas { display: block; width: 100%; border-radius: 8px; cursor: crosshair; }
+  .canvas-hint { font-size: 12px; color: #999; text-align: center; margin-bottom: 8px; }
+
+  /* Photo */
+  .photo-wrap { text-align: center; }
+  #videoEl { width: 100%; max-width: 380px; border-radius: 10px; background: #000; display: none; margin: 0 auto 12px; }
+  #photoPreview { width: 100%; max-width: 380px; border-radius: 10px; display: none; margin: 0 auto 12px; border: 2px solid var(--green); }
+  #photoCanvas { display: none; }
+
+  /* Consent */
+  .consent-box {
+    background: var(--orange-light); border: 1px solid #F5CDA0;
+    border-radius: 10px; padding: 16px; margin-bottom: 20px;
+  }
+  .consent-label {
+    display: flex; align-items: flex-start; gap: 12px;
+    cursor: pointer; font-size: 13px; line-height: 1.6;
+  }
+  .consent-label input { margin-top: 3px; accent-color: var(--orange); width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── BUTTONS ─────────────────────────────────────────────────────────── */
+  .btn {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 14px; font-weight: 600;
+    padding: 12px 24px; border-radius: 8px; border: none;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.3px;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--orange); color: var(--white); }
+  .btn-primary:hover:not(:disabled) { background: #C7450A; }
+  .btn-secondary { background: var(--white); color: var(--dark); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--light); }
+  .btn-green { background: var(--green); color: var(--white); }
+  .btn-green:hover { background: #145525; }
+  .btn-purple { background: var(--purple); color: var(--white); }
+  .btn-purple:hover:not(:disabled) { background: #6D28D9; }
+  .btn-whatsapp { background: #25D366; color: var(--white); }
+  .btn-whatsapp:hover { background: #1aaa52; }
+  .btn-full { width: 100%; justify-content: center; padding: 14px; font-size: 15px; }
+
+  /* ── SUCCESS RESULT ──────────────────────────────────────────────────── */
+  .success-result {
+    background: var(--green-light); border: 1.5px solid #9FD9B4;
+    border-radius: 16px; padding: 32px 24px; text-align: center;
+    margin-top: 20px; animation: fadeIn 0.4s ease;
+  }
+  .success-icon { font-size: 56px; margin-bottom: 14px; }
+  .success-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px; font-weight: 700; color: #145525; margin-bottom: 10px;
+  }
+  .success-msg { font-size: 14px; color: #2A7A45; margin-bottom: 20px; line-height: 1.7; }
+  .success-stamp {
+    background: var(--white); border: 1px solid #9FD9B4;
+    border-radius: 8px; padding: 14px 18px; display: inline-block;
+    font-size: 12px; font-family: monospace; color: #145525;
+    margin-bottom: 24px; text-align: left; line-height: 1.8; min-width: 280px;
+  }
+  .success-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .success-note { margin-top: 16px; font-size: 12px; color: #2A7A45; }
+
+  /* ── ALREADY SIGNED STATE ────────────────────────────────────────────── */
+  .already-signed {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 24px; text-align: center;
+    margin-top: 8px;
+  }
+  .already-signed-icon { font-size: 52px; margin-bottom: 14px; }
+  .already-signed-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 700; color: #145525; margin-bottom: 8px;
+  }
+  .already-signed-meta { font-size: 14px; color: var(--mid); margin-bottom: 20px; line-height: 1.7; }
+
+  /* ── PDF PROGRESS ────────────────────────────────────────────────────── */
+  .pdf-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 9000;
+    align-items: center; justify-content: center;
+  }
+  .pdf-overlay.open { display: flex; }
+  .pdf-box {
+    background: var(--white); border-radius: 14px;
+    padding: 36px; text-align: center; max-width: 340px;
+    width: 90%;
+  }
+  .pdf-box-icon { font-size: 40px; margin-bottom: 14px; }
+  .pdf-box-label { font-size: 15px; font-weight: 600; margin-bottom: 18px; }
+  .progress-bar-wrap { background: var(--border); border-radius: 10px; height: 8px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--orange); border-radius: 10px; transition: width 0.3s; width: 0%; }
+
+  /* ── EXPIRY BADGE ────────────────────────────────────────────────────── */
+  .expiry-bar {
+    background: #FFF8EC; border: 1px solid #F5CDA0;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+    font-size: 13px; color: #7A4A00; display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ── LEGAL NOTICE ────────────────────────────────────────────────────── */
+  .legal-notice {
+    background: var(--purple-light); border: 1px solid #C4B5FD;
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;
+    font-size: 12px; color: #4C1D95; line-height: 1.6;
+  }
+
+  /* ── PRINT ───────────────────────────────────────────────────────────── */
+  @media print {
+    body > *:not(.print-area) { display: none !important; }
+    .print-area { display: block !important; }
+    .no-print { display: none !important; }
+    .doc { border: none; padding: 0; background: white; }
+  }
+
+  /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .page { padding: 16px 12px 60px; }
+    .header-inner { padding: 12px 16px; }
+    .welcome-card { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .success-actions { flex-direction: column; }
+    .sign-tabs { flex-direction: column; }
+    .sign-tab { border-radius: 8px !important; margin-bottom: 2px; }
+    .canvas-wrap canvas { height: 160px !important; }
+    .doc-sign, .doc-witness { flex-direction: column; gap: 20px; }
+    .preview-modal-body { max-height: 60vh; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay">
+  <div class="loading-logo">FACILITA <span>CELL</span></div>
+  <div class="loading-sub">Portal do Funcionário</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Carregando seus documentos...</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="logo">FACILITA <span>CELL</span></div>
+      <div class="header-sub">Portal do Funcionário</div>
+    </div>
+    <div id="headerBadge"></div>
+  </div>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page">
+
+  <!-- STATE: INVALID LINK -->
+  <div class="state" id="stateInvalid">
+    <div class="center-box">
+      <div class="center-icon">❌</div>
+      <div class="center-title">Link Inválido</div>
+      <div class="center-msg">Este link não foi encontrado no sistema.<br>Solicite um novo link ao RH da FACILITA CELL.</div>
+    </div>
+  </div>
+
+  <!-- STATE: EXPIRED -->
+  <div class="state" id="stateExpired">
+    <div class="center-box">
+      <div class="center-icon">⏰</div>
+      <div class="center-title">Link Expirado</div>
+      <div class="center-msg" id="expiredMsg">Este link expirou. Solicite um novo link ao empregador.</div>
+    </div>
+  </div>
+
+  <!-- STATE: ERROR -->
+  <div class="state" id="stateError">
+    <div class="center-box">
+      <div class="center-icon">⚠️</div>
+      <div class="center-title">Erro de Conexão</div>
+      <div class="center-msg" id="errorMsg">Não foi possível carregar os documentos. Verifique sua conexão e tente novamente.</div>
+      <button class="btn btn-primary" onclick="location.reload()">🔄 Tentar Novamente</button>
+    </div>
+  </div>
+
+  <!-- STATE: NO TOKEN (direct access) -->
+  <div class="state" id="stateNoToken">
+    <div class="center-box">
+      <div class="center-icon">🔗</div>
+      <div class="center-title">Acesso via Link</div>
+      <div class="center-msg">Esta página é acessada exclusivamente via link enviado pelo RH da FACILITA CELL.<br>Se você recebeu um link, clique nele para acessar seus documentos.</div>
+    </div>
+  </div>
+
+  <!-- STATE: ALREADY SIGNED -->
+  <div class="state" id="stateAlreadySigned">
+    <div class="center-box" style="padding:28px 0;">
+      <div class="already-signed">
+        <div class="already-signed-icon">✅</div>
+        <div class="already-signed-title">Documentos Já Assinados</div>
+        <div class="already-signed-meta" id="alreadySignedMeta">
+          Você já assinou estes documentos.<br>
+          Use os botões abaixo para baixar uma cópia.
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-green" id="btnRedownloadPrint" onclick="downloadSignedDoc()">🖨 Imprimir Cópia</button>
+          <button class="btn btn-primary" id="btnRedownloadPDF" onclick="exportSignedPDF()">📄 Baixar PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE: SIGNING FLOW -->
+  <div class="state" id="stateSigning">
+
+    <!-- Welcome card -->
+    <div class="welcome-card">
+      <div class="welcome-avatar">👤</div>
+      <div>
+        <div class="welcome-name" id="empName">—</div>
+        <div class="welcome-cargo" id="empCargo">—</div>
+        <div class="welcome-meta" id="empMeta">—</div>
+      </div>
+    </div>
+
+    <!-- Expiry warning -->
+    <div class="expiry-bar" id="expiryBar">
+      <span>⏳</span>
+      <span id="expiryText">—</span>
+    </div>
+
+    <!-- Info banner -->
+    <div class="info-banner">
+      <div class="info-banner-icon">📱</div>
+      <div>
+        Você pode assinar diretamente pelo <strong>celular</strong>.
+        Use o dedo na área de assinatura abaixo. Leia cada documento antes de assinar.
+      </div>
+    </div>
+
+    <!-- Documents list -->
+    <div class="doc-list-card">
+      <div class="doc-list-header">
+        <div class="doc-list-title">📄 Documentos para Assinar</div>
+        <div class="doc-count-badge" id="docCountBadge">0</div>
+      </div>
+      <div id="docListItems"></div>
+    </div>
+
+    <!-- Signature section -->
+    <div class="sign-section" id="signSection">
+      <div class="sign-section-title">✍ Realizar Assinatura</div>
+      <div class="sign-section-sub">Escolha como deseja assinar. A assinatura manuscrita é obrigatória. A foto é recomendada para maior segurança jurídica.</div>
+
+      <div class="sign-tabs">
+        <button class="sign-tab active" onclick="switchTab('canvas')">✍ Assinatura Manuscrita</button>
+        <button class="sign-tab" onclick="switchTab('photo')">📷 Foto de Confirmação</button>
+      </div>
+
+      <div class="sign-tab-content">
+        <!-- Canvas -->
+        <div class="tab-pane active" id="tabCanvas">
+          <div class="canvas-hint">Assine com o dedo ou mouse no espaço abaixo</div>
+          <div class="canvas-wrap">
+            <canvas id="sigCanvas" height="180"></canvas>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-secondary" style="font-size:13px;" onclick="clearCanvas()">🗑 Limpar</button>
+            <span style="font-size:12px;color:#999;">A assinatura será incorporada ao documento</span>
+          </div>
+        </div>
+
+        <!-- Photo -->
+        <div class="tab-pane" id="tabPhoto">
+          <div class="photo-wrap">
+            <p style="font-size:13px;color:var(--mid);margin-bottom:14px;">
+              Tire uma foto do seu rosto ou documento para confirmar identidade.
+              Esta etapa é <strong>recomendada</strong> mas não obrigatória.
+            </p>
+            <video id="videoEl" autoplay playsinline></video>
+            <canvas id="photoCanvas"></canvas>
+            <img id="photoPreview" alt="Foto capturada">
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-secondary" id="btnStartCam" onclick="startCamera()" style="font-size:13px;">📷 Ativar Câmera</button>
+              <button class="btn btn-primary" id="btnCapture" onclick="capturePhoto()" style="font-size:13px;display:none;">📸 Tirar Foto</button>
+              <button class="btn btn-secondary" id="btnRetake" onclick="retakePhoto()" style="font-size:13px;display:none;">🔄 Nova Foto</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legal notice -->
+      <div class="legal-notice">
+        <strong>⚖️ Validade Jurídica (Lei 14.063/2020 e MP 2.200-2/2001):</strong><br>
+        Esta é uma <strong>assinatura eletrônica simples</strong>, válida para contratos de trabalho privados (art. 443 da CLT).
+        O sistema registra: data/hora exata (Horário de Brasília), IP do dispositivo, geolocalização (se autorizada) e biometria da assinatura manuscrita.
+      </div>
+
+      <!-- Consent -->
+      <div class="consent-box">
+        <label class="consent-label">
+          <input type="checkbox" id="signConsent">
+          <span>
+            Declaro que <strong>li e concordo</strong> com todos os documentos listados acima.
+            A assinatura eletrônica abaixo é de minha autoria e tem plena validade jurídica nos termos da
+            <strong>Lei nº 14.063/2020</strong> e do <strong>art. 443 da CLT</strong>.
+            Estou ciente de que meu IP, data/hora e localização serão registrados como prova eletrônica.
+          </span>
+        </label>
+      </div>
+
+      <button class="btn btn-purple btn-full" id="btnConfirmSign" onclick="completeSignature()">
+        ✅ Confirmar e Assinar Eletronicamente
+      </button>
+    </div>
+
+    <!-- Success result (hidden until signed) -->
+    <div class="success-result" id="signResult" style="display:none;">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Assinatura Realizada!</div>
+      <div class="success-msg" id="signResultMeta">—</div>
+      <div class="success-stamp" id="signStamp">—</div>
+      <div class="success-actions">
+        <button class="btn btn-green" onclick="downloadSignedDoc()">🖨 Imprimir Contrato</button>
+        <button class="btn btn-primary" onclick="exportSignedPDF()">📄 Baixar PDF</button>
+        <button class="btn btn-whatsapp" id="btnNotifyRH" style="display:none;" onclick="notifyRHWhatsapp()">💬 Notificar RH</button>
+      </div>
+      <div class="success-note">
+        📋 Uma cópia foi registrada no sistema. Guarde o PDF para comprovar a relação de trabalho.
+      </div>
+    </div>
+
+  </div><!-- /stateSigning -->
+
+</div><!-- /page -->
+
+<!-- DOCUMENT PREVIEW MODAL -->
+<div class="preview-modal-bg" id="previewModalBg">
+  <div class="preview-modal">
+    <div class="preview-modal-header">
+      <div class="preview-modal-title" id="previewModalTitle">—</div>
+      <button class="btn-modal-close" onclick="closePreviewModal()">✕</button>
+    </div>
+    <div class="preview-modal-body" id="previewModalBody"></div>
+    <div class="preview-modal-footer no-print">
+      <button class="btn btn-secondary" onclick="closePreviewModal()">Fechar</button>
+      <button class="btn btn-primary" onclick="printPreview()">🖨 Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF PROGRESS OVERLAY -->
+<div class="pdf-overlay" id="pdfOverlay">
+  <div class="pdf-box">
+    <div class="pdf-box-icon">📄</div>
+    <div class="pdf-box-label" id="pdfLabel">Gerando PDF...</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="pdfBar"></div></div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+// ─── FIREBASE (mesmo projeto do sistema principal) ─────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDnQUQQ8OhoyqsPH2bGgttR7oB-4sN9eho",
+  authDomain: "contratos-c035c.firebaseapp.com",
+  projectId: "contratos-c035c",
+  storageBucket: "contratos-c035c.firebasestorage.app",
+  messagingSenderId: "275298038876",
+  appId: "1:275298038876:web:57c1aaf707b3c0d47c6299"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+const D = {};
+let currentToken      = null;
+let currentPayload    = null;
+let signatureDataURL  = null;
+let photoDataURL      = null;
+let cameraStream      = null;
+let signRecord        = null; // saved after signing
+
+const DOC_NAMES = {
+  doc_contrato:       'Contrato Individual de Trabalho',
+  doc_ficha:          'Ficha de Registro de Empregado',
+  doc_declaracao:     'Declaração de Veracidade das Informações',
+  doc_cameras:        'Termo Aditivo — Monitoramento por Câmeras',
+  doc_equipamentos:   'Termo de Responsabilidade por Equipamentos',
+  doc_banco:          'Política de Banco de Horas e Compensação de Jornada',
+  doc_premios:        'Programa Interno de Premiações Meritocráticas',
+  doc_confidencialidade: 'Termo de Confidencialidade (NDA)',
+  doc_lgpd:           'Termo de Proteção de Dados (LGPD)',
+  doc_treinamento:    'Termo de Responsabilidade por Treinamento Pós-Admissão',
+  doc_conduta:        'Código de Conduta e Ética Profissional',
+  doc_acumulacao:     'Declaração de Não Acumulação de Vínculos',
+  doc_epi:            'Termo de Responsabilidade por EPIs',
+  doc_recibo_docs:    'Recibo de Entrega de Documentos'
+};
+
+// ─── UTILITIES ─────────────────────────────────────────────────────────────
+function get(id, fallback) {
+  return D[id] || fallback || '______________________';
+}
+function hoje() {
+  return new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
+}
+function admissaoFmt() {
+  if(!D.f_admissao) return '______________________';
+  const [y,m,d] = D.f_admissao.split('-');
+  return `${d}/${m}/${y}`;
+}
+function enderecoFuncionario() {
+  let e = get('f_rua');
+  if(get('f_numero') !== '______________________') e += ', nº ' + get('f_numero');
+  if(get('f_complemento') !== '______________________') e += ', ' + get('f_complemento');
+  e += ', ' + get('f_bairro') + ', CEP ' + get('f_cep') + ', ' + get('f_cidade') + '/' + get('f_uf');
+  return e;
+}
+
+function showState(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function hideLoading() {
+  const ov = document.getElementById('loadingOverlay');
+  ov.classList.add('fade-out');
+  setTimeout(() => ov.style.display = 'none', 500);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+async function init() {
+  // Accept token from URL hash: ?token=XXX  OR  #sign/XXX  OR  #token=XXX
+  const hash   = window.location.hash;
+  const params = new URLSearchParams(window.location.search);
+
+  let token = null;
+  if (params.get('token'))                   token = params.get('token');
+  else if (hash.startsWith('#sign/'))        token = hash.replace('#sign/', '').trim();
+  else if (hash.startsWith('#token='))       token = hash.replace('#token=', '').trim();
+  else if (hash.startsWith('#'))             token = hash.replace('#', '').trim();
+
+  if (!token) {
+    hideLoading();
+    showState('stateNoToken');
+    return;
+  }
+
+  currentToken = token;
+
+  try {
+    document.getElementById('loadingMsg').textContent = 'Conectando ao servidor...';
+
+    // Fetch contract
+    const contratoSnap = await db.collection('contratos').doc(token).get();
+    if (!contratoSnap.exists) {
+      hideLoading();
+      showState('stateInvalid');
+      return;
+    }
+
+    const payload = contratoSnap.data();
+
+    // Check expiry
+    if (new Date() > new Date(payload.expires)) {
+      hideLoading();
+      document.getElementById('expiredMsg').textContent =
+        `Este link expirou em ${new Date(payload.expires).toLocaleDateString('pt-BR')}. Solicite um novo link ao empregador.`;
+      showState('stateExpired');
+      return;
+    }
+
+    document.getElementById('loadingMsg').textContent = 'Verificando status de assinatura...';
+
+    // Check if already signed
+    const sigSnap = await db.collection('assinaturas').doc(token).get();
+    if (sigSnap.exists) {
+      const sig = sigSnap.data();
+      currentPayload = payload;
+      signRecord     = sig;
+      Object.assign(D, payload.data);
+      hideLoading();
+      renderAlreadySigned(sig);
+      return;
+    }
+
+    currentPayload = payload;
+    Object.assign(D, payload.data);
+
+    hideLoading();
+    renderSigningPage(payload);
+
+  } catch(e) {
+    hideLoading();
+    document.getElementById('errorMsg').textContent = 'Erro: ' + e.message;
+    showState('stateError');
+  }
+}
+
+// ─── RENDER ALREADY SIGNED ─────────────────────────────────────────────────
+function renderAlreadySigned(sig) {
+  document.getElementById('headerBadge').innerHTML =
+    `<span class="header-badge signed">✅ Assinado</span>`;
+  document.getElementById('alreadySignedMeta').innerHTML =
+    `Você assinou estes documentos em <strong>${sig.tsLocal || '—'}</strong>.<br>
+     Protocolo: <strong>${sig.token}</strong><br>
+     Use os botões abaixo para baixar uma cópia.`;
+  showState('stateAlreadySigned');
+}
+
+// ─── RENDER SIGNING PAGE ───────────────────────────────────────────────────
+function renderSigningPage(payload) {
+  const { data, docs } = payload;
+
+  document.getElementById('headerBadge').innerHTML =
+    `<span class="header-badge pending">⏳ Aguardando Assinatura</span>`;
+
+  // Welcome card
+  document.getElementById('empName').textContent  = data.f_nome  || '—';
+  document.getElementById('empCargo').textContent = data.f_cargo || '—';
+  document.getElementById('empMeta').textContent  =
+    `Admissão: ${admissaoFmt()} · Empresa: ${data.e_nome || 'FACILITA CELL'}`;
+
+  // Expiry info
+  const expires  = new Date(payload.expires);
+  const daysLeft = Math.ceil((expires - new Date()) / (1000*60*60*24));
+  document.getElementById('expiryText').textContent =
+    daysLeft > 0
+      ? `Este link expira em ${daysLeft} dia(s) — ${expires.toLocaleDateString('pt-BR')}. Assine o quanto antes.`
+      : `Este link expira hoje (${expires.toLocaleDateString('pt-BR')}).`;
+
+  // Document list
+  document.getElementById('docCountBadge').textContent = docs.length;
+  document.getElementById('docListItems').innerHTML = docs.map(id => `
+    <div class="doc-item" onclick="openPreviewModal('${id}')">
+      <div class="doc-item-left">
+        <div class="doc-item-icon">📄</div>
+        <div>
+          <div class="doc-item-name">${DOC_NAMES[id] || id}</div>
+          <div class="doc-item-sub">Toque para ler o documento completo</div>
+        </div>
+      </div>
+      <div class="doc-item-arrow">›</div>
+    </div>`).join('');
+
+  showState('stateSigning');
+  initCanvas();
+}
+
+// ─── DOCUMENT GENERATORS ───────────────────────────────────────────────────
+function docHeader() {
+  return `<div class="doc-header">
+    <div class="doc-company">FACILITA CELL</div>
+    <div class="doc-subtitle">${get('e_endereco')} | ${get('e_cidade')}</div>
+  </div>`;
+}
+
+function signBlock() {
+  return `<div class="doc-city"><p>${get('e_cidade')}, ${hoje()}.</p></div>
+  <div class="doc-sign">
+    <div class="doc-sign-block">
+      <div style="height:50px;border-bottom:1px solid #000;margin-bottom:8px;"></div>
+      <div class="doc-sign-name">${get('f_nome')}</div>
+      <div class="doc-sign-role">EMPREGADO(A) — CPF: ${get('f_cpf')}</div>
+    </div>
+    <div class="doc-sign-block">
+      <div style="height:50px;border-bottom:1px solid #000;margin-bottom:8px;"></div>
+      <div class="doc-sign-name">${get('e_nome')}</div>
+      <div class="doc-sign-role">EMPREGADOR — CNPJ: ${get('e_cnpj')}</div>
+    </div>
+  </div>
+  <div class="doc-witness">
+    <div class="doc-witness-block">
+      <div class="doc-witness-line"></div>
+      <p style="font-size:10pt;">Testemunha 1 — Nome: _________________________________ | CPF: _________________</p>
+    </div>
+    <div class="doc-witness-block">
+      <div class="doc-witness-line"></div>
+      <p style="font-size:10pt;">Testemunha 2 — Nome: _________________________________ | CPF: _________________</p>
+    </div>
+  </div>`;
+}
+
+function signBlockSigned(sig, empSig) {
+  const empSignHTML = empSig
+    ? `<img src="${empSig.signature}" style="max-height:52px;display:block;margin:0 auto 4px;">`
+    : `<div style="height:52px;border-bottom:1px solid #000;margin-bottom:8px;"></div>`;
+  return `
+  <div style="margin-top:12px;background:#EAF5EE;border:1px solid #9FD9B4;border-radius:8px;padding:10px 14px;font-size:9pt;color:#145525;font-family:monospace;">
+    ✅ Assinado eletronicamente · Protocolo: ${sig.token} · ${sig.tsLocal} · Localização: ${sig.geo}
+  </div>
+  <div class="doc-city"><p>${get('e_cidade')}, ${hoje()}.</p></div>
+  <div class="doc-sign">
+    <div class="doc-sign-block">
+      <img src="${sig.signature}" style="max-height:52px;display:block;margin:0 auto 4px;">
+      <div class="doc-sign-name">${get('f_nome')}</div>
+      <div class="doc-sign-role">EMPREGADO(A) — CPF: ${get('f_cpf')}</div>
+    </div>
+    <div class="doc-sign-block">
+      ${empSignHTML}
+      <div class="doc-sign-name">${get('e_nome')}</div>
+      <div class="doc-sign-role">EMPREGADOR — CNPJ: ${get('e_cnpj')}</div>
+    </div>
+  </div>
+  <div class="doc-witness">
+    <div class="doc-witness-block">
+      <div class="doc-witness-line"></div>
+      <p style="font-size:10pt;">Testemunha 1 — Nome: _________________________________ | CPF: _________________</p>
+    </div>
+    <div class="doc-witness-block">
+      <div class="doc-witness-line"></div>
+      <p style="font-size:10pt;">Testemunha 2 — Nome: _________________________________ | CPF: _________________</p>
+    </div>
+  </div>`;
+}
+
+function genDoc(id, signed, empSig) {
+  const sb = signed ? signBlockSigned(signed, empSig) : signBlock();
+  const wrap = h => `<div class="doc">${docHeader()}${h}${sb}</div>`;
+
+  if(id === 'doc_declaracao') return wrap(`
+    <div class="doc-title">Declaração de Veracidade das Informações</div>
+    <div class="doc-section-title">Dados Gerais</div>
+    <table class="doc-table">
+      <tr><td>Nome Completo</td><td>${get('f_nome')}</td></tr>
+      <tr><td>Nacionalidade</td><td>${get('f_nacionalidade')}</td></tr>
+      <tr><td>Estado Civil</td><td>${get('f_estadocivil')}</td></tr>
+      <tr><td>CPF</td><td>${get('f_cpf')}</td></tr>
+      <tr><td>Endereço Completo</td><td>${enderecoFuncionario()}</td></tr>
+    </table>
+    <div class="doc-section-title">Declaração</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, acima qualificado(a), declaro que todas as informações prestadas no processo seletivo, bem como os documentos apresentados, são verdadeiros e autênticos.</div>
+    <div class="doc-clause">Estou ciente de que a apresentação de informações ou documentos falsos poderá ensejar a imediata rescisão contratual por justa causa, nos termos da legislação trabalhista vigente (art. 482 da CLT).</div>
+    <div class="doc-clause"><i>Por ser expressão da verdade, firmo a presente.</i></div>`);
+
+  if(id === 'doc_contrato') return wrap(`
+    <div class="doc-title">Contrato Individual de Trabalho</div>
+    <div class="doc-subtitle2">(Com Cláusula de Experiência)</div>
+    <div class="doc-section-title">Identificação das Partes</div>
+    <div class="doc-clause"><b>EMPREGADOR(A):</b> <b>${get('e_nome')}</b>, inscrita no CNPJ sob o nº ${get('e_cnpj')}, com sede na ${get('e_endereco')}.</div>
+    <div class="doc-clause"><b>EMPREGADO(A):</b> <b>${get('f_nome')}</b>, ${get('f_nacionalidade')}, ${get('f_estadocivil')}, CPF nº ${get('f_cpf')}, residente em ${enderecoFuncionario()}.</div>
+    <div class="doc-section-title">Cláusula 1 — Do Objeto</div>
+    <div class="doc-clause">1.1. Prestação de serviços pelo(a) EMPREGADO(A) mediante subordinação, pessoalidade e habitualidade.</div>
+    <div class="doc-section-title">Cláusula 2 — Local de Trabalho</div>
+    <div class="doc-clause">2.1. ${get('e_endereco')}, ${get('e_cidade')}.</div>
+    <div class="doc-section-title">Cláusula 3 — Função</div>
+    <div class="doc-clause">3.1. ${get('f_cargo')}.</div>
+    <div class="doc-section-title">Cláusula 4 — Remuneração</div>
+    <div class="doc-clause">4.1. Salário base: <b>R$ ${get('f_salario')} (${get('f_salario_extenso')})</b>. Vale-transporte: ${get('f_vt') === 'sim' ? 'Sim, solicitado' : 'Não solicitado'}.</div>
+    <div class="doc-section-title">Cláusula 5 — Jornada</div>
+    <div class="doc-clause">5.1. ${get('f_jornada')} — ${get('f_horario')}.</div>
+    <div class="doc-section-title">Cláusula 6 — Período de Experiência</div>
+    <div class="doc-clause">6.1. Período de experiência de 45 dias a partir de ${admissaoFmt()}, prorrogável por igual período, conforme art. 443, §2º, "c" da CLT.</div>
+    <div class="doc-section-title">Cláusula 7 — Foro</div>
+    <div class="doc-clause">7.1. Comarca de ${get('e_comarca')}, Estado do ${get('f_uf')}.</div>`);
+
+  if(id === 'doc_ficha') return wrap(`
+    <div class="doc-title">Ficha de Registro de Empregado</div>
+    <div class="doc-section-title">Dados Pessoais</div>
+    <table class="doc-table">
+      <tr><td>Nome Completo</td><td>${get('f_nome')}</td></tr>
+      <tr><td>Nascimento</td><td>${get('f_nascimento')}</td></tr>
+      <tr><td>Sexo</td><td>${get('f_sexo')}</td></tr>
+      <tr><td>Estado Civil</td><td>${get('f_estadocivil')}</td></tr>
+      <tr><td>Nacionalidade</td><td>${get('f_nacionalidade')}</td></tr>
+      <tr><td>Nome da Mãe</td><td>${get('f_mae')}</td></tr>
+      <tr><td>Nome do Pai</td><td>${get('f_pai')}</td></tr>
+      <tr><td>CPF</td><td>${get('f_cpf')}</td></tr>
+      <tr><td>RG</td><td>${get('f_rg')} — ${get('f_rg_orgao')}</td></tr>
+      <tr><td>PIS/PASEP</td><td>${get('f_pis')}</td></tr>
+      <tr><td>CTPS</td><td>${get('f_ctps')}</td></tr>
+      <tr><td>Endereço</td><td>${enderecoFuncionario()}</td></tr>
+      <tr><td>Telefone</td><td>${get('f_telefone')}</td></tr>
+      <tr><td>E-mail</td><td>${get('f_email')}</td></tr>
+      <tr><td>Grau de Instrução</td><td>${get('f_instrucao')}</td></tr>
+      <tr><td>Banco / Conta</td><td>${get('f_banco')} / ${get('f_conta')}</td></tr>
+    </table>
+    <div class="doc-section-title">Dados Contratuais</div>
+    <table class="doc-table">
+      <tr><td>Data de Admissão</td><td>${admissaoFmt()}</td></tr>
+      <tr><td>Cargo/Função</td><td>${get('f_cargo')}</td></tr>
+      <tr><td>CBO</td><td>${get('f_cbo')}</td></tr>
+      <tr><td>Salário Inicial</td><td>R$ ${get('f_salario')}</td></tr>
+      <tr><td>Tipo de Contrato</td><td>Contrato de Experiência</td></tr>
+      <tr><td>Jornada</td><td>${get('f_jornada')} — ${get('f_horario')}</td></tr>
+    </table>`);
+
+  if(id === 'doc_cameras') return wrap(`
+    <div class="doc-title">Termo Aditivo ao Contrato de Trabalho</div>
+    <div class="doc-subtitle2">Ambiente Monitorado por Câmeras de Segurança</div>
+    <div class="doc-clause"><b>EMPREGADOR(A):</b> ${get('e_nome')}, CNPJ ${get('e_cnpj')}, ${get('e_endereco')}.</div>
+    <div class="doc-clause"><b>EMPREGADO(A):</b> ${get('f_nome')}, CPF ${get('f_cpf')}.</div>
+    <div class="doc-section-title">Cláusula 1 — Do Objeto</div>
+    <div class="doc-clause">1.1. Formaliza o monitoramento por câmeras nas dependências da empresa, visando segurança patrimonial e prevenção de fraudes.</div>
+    <div class="doc-section-title">Cláusula 2 — Ciência e Consentimento</div>
+    <div class="doc-clause">2.1. O(A) EMPREGADO(A) declara ter ciência e consentir com o sistema de câmeras de segurança, realizado de forma lícita e transparente.</div>
+    <div class="doc-section-title">Cláusula 3 — Privacidade</div>
+    <div class="doc-clause">3.1. O monitoramento não será realizado em banheiros ou vestiários, respeitando a dignidade e privacidade, em conformidade com CF/88, CLT e LGPD.</div>`);
+
+  if(id === 'doc_lgpd') return wrap(`
+    <div class="doc-title">Termo de Proteção de Dados Pessoais (LGPD)</div>
+    <div class="doc-subtitle2">Lei nº 13.709/2018</div>
+    <div class="doc-clause"><b>Controlador:</b> ${get('e_nome')}, CNPJ ${get('e_cnpj')}.</div>
+    <div class="doc-clause"><b>Titular:</b> ${get('f_nome')}, CPF ${get('f_cpf')}.</div>
+    <div class="doc-section-title">1. Finalidade do Tratamento</div>
+    <div class="doc-clause">Os dados pessoais do(a) titular são tratados exclusivamente para fins de gestão da relação de emprego: admissão, pagamento, benefícios, obrigações acessórias trabalhistas e previdenciárias.</div>
+    <div class="doc-section-title">2. Dados Coletados</div>
+    <div class="doc-clause">Nome, CPF, RG, PIS, CTPS, endereço, contato, dados bancários, dependentes e histórico profissional.</div>
+    <div class="doc-section-title">3. Compartilhamento</div>
+    <div class="doc-clause">Os dados poderão ser compartilhados com órgãos governamentais (eSocial, FGTS, INSS, SEFIP) e prestadores de serviço de folha de pagamento, mediante sigilo e finalidade específica.</div>
+    <div class="doc-section-title">4. Direitos do Titular</div>
+    <div class="doc-clause">Confirmação, acesso, correção, portabilidade, eliminação e revogação do consentimento, conforme art. 18 da LGPD.</div>
+    <div class="doc-section-title">5. Consentimento</div>
+    <div class="doc-clause">Eu, ${get('f_nome')}, concordo com o tratamento dos meus dados pessoais nos termos acima.</div>`);
+
+  if(id === 'doc_confidencialidade') return wrap(`
+    <div class="doc-title">Termo de Confidencialidade e Não Divulgação (NDA)</div>
+    <div class="doc-clause"><b>EMPREGADOR(A):</b> ${get('e_nome')}, CNPJ ${get('e_cnpj')}.</div>
+    <div class="doc-clause"><b>EMPREGADO(A):</b> ${get('f_nome')}, CPF ${get('f_cpf')}.</div>
+    <div class="doc-section-title">1. Informações Confidenciais</div>
+    <div class="doc-clause">Dados de clientes, fornecedores, estratégias comerciais, precificações, processos internos, sistemas, e qualquer informação de caráter reservado da empresa.</div>
+    <div class="doc-section-title">2. Obrigações</div>
+    <div class="doc-clause">O(A) EMPREGADO(A) compromete-se a: (i) não divulgar informações confidenciais a terceiros; (ii) utilizá-las apenas para fins profissionais internos; (iii) notificar imediatamente qualquer violação.</div>
+    <div class="doc-section-title">3. Vigência</div>
+    <div class="doc-clause">As obrigações vigoram durante e após o término do vínculo empregatício, por prazo indeterminado.</div>`);
+
+  if(id === 'doc_equipamentos') return wrap(`
+    <div class="doc-title">Termo de Responsabilidade por Equipamentos</div>
+    <table class="doc-table">
+      <tr><td>Empregado</td><td>${get('f_nome')}</td></tr>
+      <tr><td>CPF</td><td>${get('f_cpf')}</td></tr>
+      <tr><td>Cargo</td><td>${get('f_cargo')}</td></tr>
+    </table>
+    <div class="doc-section-title">Equipamentos Entregues</div>
+    <table class="doc-table">
+      <tr style="background:#f0f0f0;"><td><b>Item</b></td><td><b>Marca/Modelo</b></td><td><b>Nº Série</b></td><td><b>Estado</b></td></tr>
+      <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+      <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    </table>
+    <div class="doc-clause">O(A) EMPREGADO(A) compromete-se a: zelar pela guarda e conservação; não utilizar para fins pessoais; devolver em perfeito estado ao término do contrato. Danos por negligência autorizam desconto em folha (art. 462, §1º, CLT).</div>`);
+
+  if(id === 'doc_banco') return wrap(`
+    <div class="doc-title">Política de Banco de Horas e Compensação de Jornada</div>
+    <div class="doc-clause"><b>Empresa:</b> ${get('e_nome')} — CNPJ: ${get('e_cnpj')}</div>
+    <div class="doc-section-title">1. Objetivo</div>
+    <div class="doc-clause">Formalizar o sistema de Banco de Horas, permitindo a compensação de horas extras com folgas ou redução de jornada.</div>
+    <div class="doc-section-title">2. Limites</div>
+    <div class="doc-clause">Máximo de 2 horas extras/dia. Prazo de compensação: 12 meses. Horas não compensadas serão pagas com adicional de 50%.</div>
+    <div class="doc-section-title">3. Rescisão</div>
+    <div class="doc-clause">Saldo positivo será quitado como horas extras. Saldo negativo não será descontado das verbas rescisórias.</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, declaro ter lido e concordado com a Política de Banco de Horas.</div>`);
+
+  if(id === 'doc_premios') return wrap(`
+    <div class="doc-title">Programa Interno de Premiações Meritocráticas</div>
+    <div class="doc-clause"><b>Empresa:</b> ${get('e_nome')} — CNPJ: ${get('e_cnpj')}</div>
+    <div class="doc-section-title">1. Natureza Jurídica</div>
+    <div class="doc-clause">Os prêmios são liberalidades do empregador, sem natureza salarial, conforme art. 457, §4º, da CLT. Não integram a remuneração para fins de encargos.</div>
+    <div class="doc-section-title">2. Critérios</div>
+    <div class="doc-clause">Desempenho em metas de vendas, atendimento ao cliente, pontualidade e assiduidade, conforme avaliação periódica.</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, declaro ter ciência do programa de premiações.</div>`);
+
+  if(id === 'doc_treinamento') return wrap(`
+    <div class="doc-title">Termo de Responsabilidade por Treinamento Pós-Admissão</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF ${get('f_cpf')}, comprometo-me a participar de todos os treinamentos de integração e capacitação promovidos pela <b>${get('e_nome')}</b>.</div>
+    <div class="doc-section-title">1. Conteúdo dos Treinamentos</div>
+    <div class="doc-clause">Normas internas, procedimentos de atendimento, segurança do trabalho, uso de equipamentos e sistemas da empresa.</div>
+    <div class="doc-section-title">2. Responsabilidade</div>
+    <div class="doc-clause">A recusa injustificada a participar dos treinamentos poderá ensejar medidas disciplinares conforme Código de Conduta da empresa.</div>`);
+
+  if(id === 'doc_conduta') return wrap(`
+    <div class="doc-title">Código de Conduta e Ética Profissional</div>
+    <div class="doc-clause"><b>Empresa:</b> ${get('e_nome')} — CNPJ: ${get('e_cnpj')}</div>
+    <div class="doc-section-title">1. Princípios</div>
+    <div class="doc-clause">Integridade, transparência, respeito mútuo, anticorrupção e comprometimento com a Lei nº 12.846/2013 (Lei Anticorrupção).</div>
+    <div class="doc-section-title">2. Condutas Proibidas</div>
+    <div class="doc-clause">Assédio moral ou sexual; discriminação; desvio de bens; conflito de interesses; uso indevido de informações confidenciais.</div>
+    <div class="doc-section-title">3. Canal de Denúncias</div>
+    <div class="doc-clause">Violações devem ser comunicadas à gestão. Toda denúncia será tratada com confidencialidade e sem retaliação.</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, declaro ter lido, compreendido e aceito o Código de Conduta.</div>`);
+
+  if(id === 'doc_acumulacao') return wrap(`
+    <div class="doc-title">Declaração de Não Acumulação de Vínculos Empregatícios</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF ${get('f_cpf')}, RG ${get('f_rg')}, residente em ${enderecoFuncionario()}, <b>DECLARO</b> para os devidos fins que:</div>
+    <div class="doc-clause">• <b>Não possuo</b> outro vínculo empregatício em regime CLT que seja incompatível com as funções de <b>${get('f_cargo')}</b> na empresa ${get('e_nome')}.</div>
+    <div class="doc-clause">• Estou ciente de que a omissão ou declaração falsa sobre outros vínculos poderá caracterizar justa causa para rescisão, nos termos do art. 482, "a" da CLT.</div>
+    <div class="doc-clause">• Comprometo-me a comunicar imediatamente qualquer alteração nesta situação.</div>`);
+
+  if(id === 'doc_epi') return wrap(`
+    <div class="doc-title">Termo de Responsabilidade por EPIs</div>
+    <div class="doc-subtitle2">Conforme NR-6 e Portaria MTE nº 3.214/1978</div>
+    <table class="doc-table">
+      <tr><td>Empregado</td><td>${get('f_nome')}</td></tr>
+      <tr><td>Função</td><td>${get('f_cargo')}</td></tr>
+    </table>
+    <div class="doc-section-title">EPIs Entregues</div>
+    <table class="doc-table">
+      <tr style="background:#f0f0f0;"><td><b>EPI</b></td><td><b>Descrição</b></td><td><b>CA nº</b></td><td><b>Data</b></td></tr>
+      <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+      <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    </table>
+    <div class="doc-clause">O(A) EMPREGADO(A) compromete-se a utilizar os EPIs sempre que exigido, conservá-los em bom estado e comunicar defeitos imediatamente.</div>`);
+
+  if(id === 'doc_recibo_docs') return wrap(`
+    <div class="doc-title">Recibo de Entrega de Documentos Admissionais</div>
+    <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF ${get('f_cpf')}, CTPS ${get('f_ctps')}, declaro ter recebido da empresa <b>${get('e_nome')}</b> os seguintes documentos:</div>
+    <table class="doc-table">
+      <tr><td>1. Cópia do Contrato de Trabalho</td><td>( ) Recebido</td></tr>
+      <tr><td>2. Regulamento Interno</td><td>( ) Recebido</td></tr>
+      <tr><td>3. Termo de LGPD</td><td>( ) Recebido</td></tr>
+      <tr><td>4. Ficha de Salário-Família</td><td>( ) N/A</td></tr>
+      <tr><td>5. Comprovante de Registro CTPS</td><td>( ) Recebido</td></tr>
+    </table>
+    <div class="doc-clause">Declaro também ter entregue à empresa todos os documentos exigidos no processo de admissão.</div>`);
+
+  return wrap(`<div class="doc-title">${DOC_NAMES[id] || id}</div><div class="doc-clause">Documento em construção.</div>`);
+}
+
+// ─── PREVIEW MODAL ──────────────────────────────────────────────────────────
+function openPreviewModal(id) {
+  document.getElementById('previewModalTitle').textContent = DOC_NAMES[id] || id;
+  document.getElementById('previewModalBody').innerHTML = genDoc(id);
+  document.getElementById('previewModalBg').classList.add('open');
+}
+function closePreviewModal() {
+  document.getElementById('previewModalBg').classList.remove('open');
+}
+function printPreview() {
+  const content = document.getElementById('previewModalBody').innerHTML;
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>FACILITA CELL — Documento</title>
+    <style>
+      body{font-family:'Times New Roman',serif;padding:20px;}
+      .doc{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.7;color:#000;}
+      .doc-header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #000;}
+      .doc-company{font-size:14pt;font-weight:bold;}
+      .doc-subtitle{font-size:10pt;color:#555;}
+      .doc-title{font-size:15pt;font-weight:bold;text-align:center;text-transform:uppercase;margin:16px 0 6px;}
+      .doc-subtitle2{text-align:center;font-style:italic;font-size:11pt;margin-bottom:16px;}
+      .doc-section-title{font-weight:bold;text-transform:uppercase;font-size:10pt;margin:12px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px;}
+      .doc-clause{margin-bottom:6px;text-align:justify;}
+      .doc-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10pt;}
+      .doc-table td{border:1px solid #999;padding:4px 8px;vertical-align:top;}
+      .doc-table td:first-child{font-weight:bold;width:35%;background:#f0f0f0;}
+      .doc-sign{margin-top:32px;display:flex;justify-content:space-between;gap:30px;}
+      .doc-sign-block{flex:1;text-align:center;}
+      .doc-city{margin-top:24px;}
+      .doc-witness{margin-top:28px;border-top:1px solid #ccc;padding-top:12px;display:flex;gap:30px;}
+      .doc-witness-block{flex:1;}
+      .doc-witness-line{border-top:1px solid #000;margin-top:26px;}
+    </style>
+  </head><body>${content}</body></html>`);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 500);
+}
+
+// ─── CANVAS ─────────────────────────────────────────────────────────────────
+function initCanvas() {
+  const canvas = document.getElementById('sigCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 560;
+  let drawing = false, lx = 0, ly = 0;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return [(cx-rect.left)*sx, (cy-rect.top)*sy];
+  }
+  ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  canvas.addEventListener('mousedown',  e => { drawing=true; [lx,ly]=getPos(e); });
+  canvas.addEventListener('mousemove',  e => { if(!drawing)return; const [x,y]=getPos(e); ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y]; });
+  canvas.addEventListener('mouseup',    () => drawing=false);
+  canvas.addEventListener('mouseleave', () => drawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault();drawing=true;[lx,ly]=getPos(e); },{passive:false});
+  canvas.addEventListener('touchmove',  e => { if(!drawing)return;e.preventDefault();const [x,y]=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.stroke();[lx,ly]=[x,y]; },{passive:false});
+  canvas.addEventListener('touchend',   () => drawing=false);
+}
+
+function clearCanvas() {
+  const c = document.getElementById('sigCanvas');
+  c.getContext('2d').clearRect(0,0,c.width,c.height);
+  signatureDataURL = null;
+}
+
+function isCanvasEmpty() {
+  const c = document.getElementById('sigCanvas');
+  return !c.getContext('2d').getImageData(0,0,c.width,c.height).data.some(v=>v!==0);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.sign-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='canvas')||(i===1&&tab==='photo')));
+  document.getElementById('tabCanvas').classList.toggle('active',tab==='canvas');
+  document.getElementById('tabPhoto').classList.toggle('active',tab==='photo');
+  if(tab==='canvas') initCanvas();
+}
+
+// ─── CAMERA ─────────────────────────────────────────────────────────────────
+async function startCamera() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+    const v = document.getElementById('videoEl');
+    v.srcObject = cameraStream; v.style.display = 'block';
+    document.getElementById('btnStartCam').style.display = 'none';
+    document.getElementById('btnCapture').style.display  = 'inline-flex';
+  } catch(e) { alert('Câmera indisponível: ' + e.message); }
+}
+
+function compressImage(src, mw, mh, q) {
+  const w=src.width, h=src.height;
+  let scale=1;
+  if(w>mw) scale=Math.min(scale,mw/w);
+  if(h>mh) scale=Math.min(scale,mh/h);
+  const c=document.createElement('canvas');
+  c.width=Math.round(w*scale); c.height=Math.round(h*scale);
+  c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',q);
+}
+
+function capturePhoto() {
+  const video=document.getElementById('videoEl'), canvas=document.getElementById('photoCanvas');
+  canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  photoDataURL = compressImage(canvas,800,600,0.75);
+  if(cameraStream) cameraStream.getTracks().forEach(t=>t.stop());
+  video.style.display='none';
+  const prev=document.getElementById('photoPreview');
+  prev.src=photoDataURL; prev.style.display='block';
+  document.getElementById('btnCapture').style.display='none';
+  document.getElementById('btnRetake').style.display='inline-flex';
+}
+
+function retakePhoto() {
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('btnRetake').style.display='none';
+  document.getElementById('btnCapture').style.display='none';
+  document.getElementById('btnStartCam').style.display='inline-flex';
+  photoDataURL=null;
+}
+
+// ─── COMPLETE SIGNATURE ──────────────────────────────────────────────────────
+async function completeSignature() {
+  if (isCanvasEmpty()) {
+    alert('Realize a assinatura manuscrita antes de confirmar.');
+    switchTab('canvas'); return;
+  }
+  if (!document.getElementById('signConsent').checked) {
+    alert('Marque a caixa de concordância para prosseguir.');
+    return;
+  }
+
+  const btn = document.getElementById('btnConfirmSign');
+  btn.disabled = true; btn.innerHTML = '⏳ Salvando assinatura...';
+
+  // Compress signature
+  const sigCanvas = document.getElementById('sigCanvas');
+  const tmpC = document.createElement('canvas');
+  tmpC.width=sigCanvas.width; tmpC.height=sigCanvas.height;
+  tmpC.getContext('2d').drawImage(sigCanvas,0,0);
+  signatureDataURL = compressImage(tmpC,600,200,0.85);
+
+  // Compress photo
+  if(photoDataURL) {
+    const img=new Image();
+    await new Promise(r=>{img.onload=r;img.src=photoDataURL;});
+    const pc=document.createElement('canvas');
+    pc.width=img.width;pc.height=img.height;
+    pc.getContext('2d').drawImage(img,0,0);
+    photoDataURL=compressImage(pc,600,500,0.65);
+  }
+
+  const now = new Date();
+  const tsLocal = now.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',
+    day:'2-digit',month:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  // Geolocation
+  let geo = 'Não informada';
+  try {
+    const pos = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:4000}));
+    geo = pos.coords.latitude.toFixed(5)+', '+pos.coords.longitude.toFixed(5);
+  } catch(e){}
+
+  const record = {
+    token:     currentToken,
+    nome:      D.f_nome   || '',
+    cpf:       D.f_cpf    || '',
+    cargo:     D.f_cargo  || '',
+    timestamp: now.toISOString(),
+    tsLocal,
+    geo,
+    signature: signatureDataURL,
+    photo:     photoDataURL || null,
+    docs:      currentPayload.docs,
+    notifWhatsapp: currentPayload.notifWhatsapp || null,
+    notifEmail:    currentPayload.notifEmail    || null
+  };
+
+  try {
+    await db.collection('assinaturas').doc(currentToken).set(record);
+    // Update contract status
+    await db.collection('contratos').doc(currentToken).update({ signedAt: now.toISOString() });
+
+    signRecord = record;
+    showSignSuccess(record, tsLocal, geo);
+  } catch(e) {
+    btn.disabled=false; btn.innerHTML='✅ Confirmar e Assinar Eletronicamente';
+    alert('Erro ao salvar assinatura: ' + e.message);
+  }
+}
+
+function showSignSuccess(record, tsLocal, geo) {
+  document.getElementById('signSection').style.display = 'none';
+  document.getElementById('headerBadge').innerHTML =
+    `<span class="header-badge signed">✅ Assinado</span>`;
+
+  document.getElementById('signResultMeta').innerHTML =
+    `Seus documentos foram assinados eletronicamente em <strong>${tsLocal}</strong>.<br>
+     Localização registrada: ${geo}`;
+
+  document.getElementById('signStamp').innerHTML =
+    `📋 Protocolo: <b>${record.token}</b><br>
+     ✍ Funcionário: <b>${record.nome}</b><br>
+     🕐 Data/Hora: <b>${tsLocal}</b><br>
+     📍 Localização: ${geo}<br>
+     🔒 Hash: ${btoa(record.token+record.timestamp).substring(0,24)}...`;
+
+  // WhatsApp RH notification button
+  if (record.notifWhatsapp) {
+    document.getElementById('btnNotifyRH').style.display = 'inline-flex';
+  }
+
+  document.getElementById('signResult').style.display = 'block';
+  document.getElementById('signResult').scrollIntoView({behavior:'smooth'});
+}
+
+// ─── NOTIFY RH ───────────────────────────────────────────────────────────────
+function notifyRHWhatsapp() {
+  if (!signRecord || !signRecord.notifWhatsapp) return;
+  const phone = signRecord.notifWhatsapp.replace(/\D/g,'');
+  const msg = encodeURIComponent(
+    `✅ FACILITA CELL — Assinatura Confirmada!\n\n` +
+    `Funcionário: ${signRecord.nome}\n` +
+    `CPF: ${signRecord.cpf}\n` +
+    `Cargo: ${signRecord.cargo}\n` +
+    `Assinado em: ${signRecord.tsLocal}\n` +
+    `Protocolo: ${signRecord.token}\n\n` +
+    `Os documentos foram assinados eletronicamente e estão disponíveis no sistema.`
+  );
+  window.open(`https://wa.me/55${phone}?text=${msg}`, '_blank');
+}
+
+// ─── BUILD ALL DOCS HTML ─────────────────────────────────────────────────────
+async function buildAllDocsHTML(withSignature) {
+  let docs = currentPayload?.docs || [];
+  let sig  = null;
+  let empSig = null;
+
+  if (withSignature) {
+    sig = signRecord;
+    if (!sig && currentToken) {
+      try {
+        const snap = await db.collection('assinaturas').doc(currentToken).get();
+        if (snap.exists) sig = snap.data();
+      } catch(e){}
+    }
+    if (sig && currentToken) {
+      try {
+        const snap = await db.collection('assinaturas_empregador').doc(currentToken).get();
+        if (snap.exists) empSig = snap.data();
+      } catch(e){}
+    }
+  }
+
+  return docs.map(id => genDoc(id, sig, empSig)).join('<div style="page-break-before:always;"></div>');
+}
+
+// ─── PRINT ───────────────────────────────────────────────────────────────────
+async function downloadSignedDoc() {
+  const allHTML = await buildAllDocsHTML(true);
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>FACILITA CELL — Contrato Assinado</title>
+    <style>
+      @page{margin:20mm;}
+      body{font-family:'Times New Roman',serif;padding:0;}
+      .doc{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.7;color:#000;padding:10px;}
+      .doc-header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #000;}
+      .doc-company{font-size:14pt;font-weight:bold;letter-spacing:1px;}
+      .doc-subtitle{font-size:10pt;color:#555;}
+      .doc-title{font-size:15pt;font-weight:bold;text-align:center;text-transform:uppercase;margin:16px 0 6px;letter-spacing:1px;}
+      .doc-subtitle2{text-align:center;font-style:italic;font-size:11pt;margin-bottom:16px;}
+      .doc-section-title{font-weight:bold;text-transform:uppercase;font-size:10pt;margin:12px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px;}
+      .doc-clause{margin-bottom:6px;text-align:justify;}
+      .doc-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10pt;}
+      .doc-table td{border:1px solid #999;padding:4px 8px;vertical-align:top;}
+      .doc-table td:first-child{font-weight:bold;width:35%;background:#f0f0f0;}
+      .doc-sign{margin-top:32px;display:flex;justify-content:space-between;gap:30px;}
+      .doc-sign-block{flex:1;text-align:center;}
+      .doc-city{margin-top:24px;}
+      .doc-witness{margin-top:28px;border-top:1px solid #ccc;padding-top:12px;display:flex;gap:30px;}
+      .doc-witness-block{flex:1;}
+      .doc-witness-line{border-top:1px solid #000;margin-top:26px;}
+    </style>
+  </head><body>${allHTML}</body></html>`);
+  w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 600);
+}
+
+// ─── EXPORT PDF ───────────────────────────────────────────────────────────────
+async function exportSignedPDF() {
+  const overlay = document.getElementById('pdfOverlay');
+  const bar     = document.getElementById('pdfBar');
+  const label   = document.getElementById('pdfLabel');
+  overlay.classList.add('open');
+  bar.style.width='10%'; label.textContent='Preparando documentos...';
+
+  const allHTML = await buildAllDocsHTML(true);
+  bar.style.width='35%'; label.textContent='Gerando PDF...';
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;font-family:Times New Roman,serif;font-size:11pt;line-height:1.7;color:#000;background:#fff;';
+  wrapper.innerHTML = `<style>
+    .doc{padding:10px 14px;}
+    .doc-header{text-align:center;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid #000;}
+    .doc-company{font-size:14pt;font-weight:bold;letter-spacing:1px;}
+    .doc-subtitle{font-size:10pt;color:#555;}
+    .doc-title{font-size:14pt;font-weight:bold;text-align:center;text-transform:uppercase;margin:14px 0 5px;}
+    .doc-subtitle2{text-align:center;font-style:italic;font-size:11pt;margin-bottom:14px;}
+    .doc-section-title{font-weight:bold;text-transform:uppercase;font-size:10pt;margin:10px 0 3px;border-bottom:1px solid #ccc;padding-bottom:2px;}
+    .doc-clause{margin-bottom:5px;text-align:justify;}
+    .doc-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:10pt;}
+    .doc-table td{border:1px solid #999;padding:4px 8px;vertical-align:top;}
+    .doc-table td:first-child{font-weight:bold;width:35%;background:#f0f0f0;}
+    .doc-sign{margin-top:28px;display:flex;justify-content:space-between;gap:28px;}
+    .doc-sign-block{flex:1;text-align:center;}
+    .doc-city{margin-top:20px;}
+    .doc-witness{margin-top:24px;border-top:1px solid #ccc;padding-top:10px;display:flex;gap:24px;}
+    .doc-witness-block{flex:1;}
+    .doc-witness-line{border-top:1px solid #000;margin-top:22px;}
+  </style>${allHTML}`;
+  document.body.appendChild(wrapper);
+  bar.style.width='60%'; label.textContent='Renderizando páginas...';
+
+  const nomeSanitized = (D.f_nome||'Funcionario').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9-]/g,'');
+  const filename = `FACILITA_CELL_Contratos_${nomeSanitized}_${currentToken?.substring(0,6)||'doc'}.pdf`;
+
+  try {
+    await html2pdf().set({
+      margin:      [12,10,12,10],
+      filename:    filename,
+      image:       {type:'jpeg',quality:0.92},
+      html2canvas: {scale:2,useCORS:true,logging:false},
+      jsPDF:       {unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:   {mode:['css','legacy']}
+    }).from(wrapper).save();
+    bar.style.width='100%'; label.textContent='✅ PDF gerado!';
+  } catch(e) {
+    label.textContent='⚠️ Erro: ' + e.message;
+  } finally {
+    document.body.removeChild(wrapper);
+    setTimeout(()=>overlay.classList.remove('open'), 1500);
+  }
+}
+
+// ─── CLICK OUTSIDE MODAL ─────────────────────────────────────────────────────
+document.getElementById('previewModalBg').addEventListener('click', function(e){
+  if(e.target===this) closePreviewModal();
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
